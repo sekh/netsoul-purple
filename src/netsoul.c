@@ -658,6 +658,9 @@ static void init_plugin(PurplePlugin *plugin)
     option = purple_account_option_string_new(_("Location"), "location", NETSOUL_DEFAULT_LOCATION);
     prpl_info.protocol_options = g_list_append(prpl_info.protocol_options, option);
 
+    option = purple_account_option_bool_new(_("Location discovery (AP-based position)"), "locdisc", NETSOUL_DEFAULT_DISCOVERY);
+    prpl_info.protocol_options = g_list_append(prpl_info.protocol_options, option);
+
     option = purple_account_option_string_new(_("Comment"), "comment", NETSOUL_DEFAULT_COMMENT);
     prpl_info.protocol_options = g_list_append(prpl_info.protocol_options, option);
 
