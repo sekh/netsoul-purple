@@ -25,14 +25,14 @@
 #include <sys/socket.h>
 #include <unistd.h>
 #include <string.h>
-#include <net/if.h>
+//#include <net/if.h>
 #include <stropts.h>
 
 /* Including kernel headers in userspace */
 #ifndef __user
 #define __user
 #endif
-#include <wireless.h>
+#include <linux/wireless.h>
 
 #include "netsoul.h"
 

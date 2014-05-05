@@ -38,3 +38,4 @@ src/libnetsoul.la
 *.o
 *.lo
 .libs
+*~
