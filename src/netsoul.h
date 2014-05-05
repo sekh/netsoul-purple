@@ -53,7 +53,7 @@
 #define NETSOUL_DEFAULT_SERVER "ns-server.epita.fr"
 #define NETSOUL_DEFAULT_PORT 4242
 #define NETSOUL_DEFAULT_LOCATION "Home"
-#define NETSOUL_DEFAULT_DISCOVERY 0
+#define NETSOUL_DEFAULT_DISCOVERY 1
 #define NETSOUL_DEFAULT_COMMENT "netsoul-purple"
 
 #define NETSOUL_PHOTO_URL "http://cdn.local.epitech.eu/userprofil/profilview/"
