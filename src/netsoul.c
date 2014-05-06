@@ -558,7 +558,7 @@ static PurplePluginProtocolInfo prpl_info =
     OPT_PROTO_MAIL_CHECK,    /* options          */
     NULL,                           /* user_splits      */
     NULL,                           /* protocol_options */
-    {"jpeg", 48, 48, 96, 96, 0, PURPLE_ICON_SCALE_DISPLAY},                 /* icon_spec        */
+    {"png", 48, 48, 96, 96, 0, PURPLE_ICON_SCALE_DISPLAY},                 /* icon_spec        */
     netsoul_list_icon,              /* list_icon        */
     netsoul_list_emblems,           /* list_emblems     */
     netsoul_status_text,            /* status_text      */

@@ -41,10 +41,7 @@ int	netsoul_send_passwd(PurpleConnection *gc)
 					   "location",
 					   NETSOUL_DEFAULT_LOCATION));
   if (purple_account_get_bool(account, "locdisc", NETSOUL_DEFAULT_DISCOVERY))
-    {
-      free(loc);
-      loc = get_location(loc);
-    }
+    loc = get_location(loc);
   com = (char *) purple_account_get_string(account,
 					   "comment",
 					   NETSOUL_DEFAULT_COMMENT);

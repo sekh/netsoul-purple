@@ -129,7 +129,6 @@ static const char	*find_ap_name(const char *ap_addr)
 
 char			*get_location(char *default_location)
 {
-  char			*loc = NULL;
   const char		*verbose_loc;
   char			buff[256];
   struct ether_addr	*ethp;
@@ -143,5 +142,5 @@ char			*get_location(char *default_location)
   if ((verbose_loc = find_ap_name(buff)) != NULL)
     return (strdup(verbose_loc));
   else
-    return (strdup(loc));
+    return (strdup(default_location));
 }
