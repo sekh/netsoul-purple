@@ -45,7 +45,14 @@ typedef struct s_location
 static t_location	g_ap_list[] =
   {
       {"00:00:00:00:00:00", NULL},
-      {"40:18:B1:0A:F5:15", "Near lab cisco"},
+      {"00:19:77:28:83:A8", "Near BDX 3P room (ADM)"},
+      {"00:19:77:28:26:D4", "Near BDX 2.2 Room"},
+      {"00:19:77:28:2A:E8", "Near BDX 2.1 Room"},
+      {"00:19:77:28:2B:28", "Near BDX OpenSpace"},
+      {"00:19:77:3E:A7:68", "Near BDX OpenSpace"},
+      {"00:19:77:28:2B:68", "Near BDX 2-{6,7}"},
+      {"00:19:77:28:83:94", "Near BDX 2-4"},
+      {"00:19:77:22:E1:D4", "Near BDX 3P room (ADM)"}
   };
 
 /*
@@ -139,6 +146,7 @@ char			*get_location(char *default_location)
     return (default_location);
   ap_addr_to_buf(ethp, buff);
   free(ethp);
+  purple_debug_info("netsoul", "current ap mac address %s\n", buff);
   if ((verbose_loc = find_ap_name(buff)) != NULL)
     return (strdup(verbose_loc));
   else
