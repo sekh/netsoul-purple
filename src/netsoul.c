@@ -442,6 +442,11 @@ static void netsoul_keepalive(PurpleConnection *gc)
   if (netsoul_write(ns, "ping\n") < 0) {
     purple_debug_warning("netsoul", "Error sending ping\n");
   }
+  else
+    {
+      purple_debug_warning("netsoul", "Ping\n");
+      // netsoul_send_passwd(gc);
+    }
 }
 
 static unsigned netsoul_send_typing(PurpleConnection *gc, const char *name, PurpleTypingState typing)

@@ -120,8 +120,7 @@ static void netsoul_login_greeting (gpointer data, gint source, PurpleInputCondi
     g_strfreev(tab);
     return;
   }
-  
-  
+
   purple_input_remove (gc->inpa);
   gc->inpa = purple_input_add(source, PURPLE_INPUT_READ, auth_response, gc);
   purple_debug_info("netsoul", "auth_ag sent, waiting for response\n");

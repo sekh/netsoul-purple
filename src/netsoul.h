@@ -137,6 +137,7 @@ GList	*ns_buddy_menu(PurpleBuddy *gb);
   ns_connection.c
 */
 
+int     netsoul_send_passwd(PurpleConnection *gc);
 void	netsoul_login (PurpleAccount *account);
 
 /*
