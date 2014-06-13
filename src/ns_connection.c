@@ -37,15 +37,18 @@ int	netsoul_send_passwd(PurpleConnection *gc)
 			 ns->port, purple_account_get_password(account));
   res = crypt_pass(seed);
   g_free(seed);
-  loc = (char *) purple_account_get_string(account,
+  loc = strdup((char *) purple_account_get_string(account,
 					   "location",
-					   NETSOUL_DEFAULT_LOCATION);
+					   NETSOUL_DEFAULT_LOCATION));
+  if (purple_account_get_bool(account, "locdisc", NETSOUL_DEFAULT_DISCOVERY))
+    loc = get_location(loc);
   com = (char *) purple_account_get_string(account,
 					   "comment",
 					   NETSOUL_DEFAULT_COMMENT);
   seed = g_strdup_printf("ext_user_log %s %s %s %s\n",
 			 purple_account_get_username(account), res,
 			 url_encode(loc), url_encode(com));
+  free(loc);
   return (netsoul_write(ns, seed));
 }
 
@@ -117,8 +120,7 @@ static void netsoul_login_greeting (gpointer data, gint source, PurpleInputCondi
     g_strfreev(tab);
     return;
   }
-  
-  
+
   purple_input_remove (gc->inpa);
   gc->inpa = purple_input_add(source, PURPLE_INPUT_READ, auth_response, gc);
   purple_debug_info("netsoul", "auth_ag sent, waiting for response\n");

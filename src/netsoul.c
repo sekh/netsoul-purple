@@ -172,7 +172,7 @@ static GList * netsoul_away_states (PurpleAccount* account)
 				     NULL, NULL, TRUE, TRUE, FALSE);
   types = g_list_append(types, status);
   status = purple_status_type_new_full(PURPLE_STATUS_AVAILABLE,
-				     "actif", NULL, FALSE, TRUE, FALSE);
+				     "active", NULL, FALSE, TRUE, FALSE);
   types = g_list_append(types, status);
 
   status = purple_status_type_new_full(PURPLE_STATUS_AWAY,
@@ -265,13 +265,14 @@ static void netsoul_got_photo (PurpleUtilFetchUrlData *url, void *user_data,
 {
   PurpleBuddy *gb = user_data;
   PurpleAccount *account = purple_buddy_get_account (gb);
-
+  if (account == NULL)
+    return ;
   // Check if connection is still existing
   PurpleConnection *gc = purple_account_get_connection (account);
   if (gc == NULL)
     return;
 
-  purple_debug_info("netsoul", "netsoul_got_photo (size: %d) for %s\n",
+  purple_debug_info("netsoul", "netsoul_got_photo (size: %lu) for %s\n",
 		    len,
 		    gb->name);
 
@@ -286,7 +287,7 @@ static void netsoul_got_photo (PurpleUtilFetchUrlData *url, void *user_data,
     {
       PurpleStoredImage *img = purple_imgstore_add(g_memdup(photo, len), len, NULL);
       PurpleBuddyIcon *icon = purple_buddy_icon_new(account, gb->name,
-						    purple_imgstore_get_data(img),
+						    (void*)purple_imgstore_get_data(img),
 						    purple_imgstore_get_size(img),
 						    NULL);
       purple_buddy_set_icon(gb, icon);
@@ -311,9 +312,8 @@ static void netsoul_add_buddy (PurpleConnection *gc, PurpleBuddy *buddy, PurpleG
   buddy->proto_data = nb;
   nb->login = g_strdup(buddy->name);
   // Get photo
-  photo = g_strdup_printf("%s%s", NETSOUL_PHOTO_URL, buddy->name);
-
-  purple_util_fetch_url(photo, TRUE, NULL, FALSE, netsoul_got_photo, buddy);
+  photo = g_strdup_printf("%s%s.png", NETSOUL_PHOTO_URL, buddy->name);
+  purple_util_fetch_url(photo, FALSE, "Mozilla/5.0", FALSE, &netsoul_got_photo, buddy);
 
   // if contact is not already is watch list, add it
   ns_watch_buddy(gc, buddy);
@@ -376,9 +376,9 @@ void netsoul_get_buddies (PurpleConnection* gc)
 	  buddy->proto_data = nb;
 	  nb->login = g_strdup(buddy->name);
 	  // Get photo
-	  photo = g_strdup_printf("%s%s", NETSOUL_PHOTO_URL, buddy->name);
-
-	  purple_util_fetch_url(photo, TRUE, NULL, FALSE, netsoul_got_photo, buddy);
+	  purple_debug_info("netsoul", "get photo %s%s.png\n", NETSOUL_PHOTO_URL, buddy->name);
+	  photo = g_strdup_printf("%s%s.png", NETSOUL_PHOTO_URL, buddy->name);
+	  purple_util_fetch_url(photo, FALSE, "Mozilla/5.0", FALSE, &netsoul_got_photo, buddy);
 
 	  // if contact is not already is watch list, add it
 	  ns_watch_buddy(gc, buddy);
@@ -442,6 +442,11 @@ static void netsoul_keepalive(PurpleConnection *gc)
   if (netsoul_write(ns, "ping\n") < 0) {
     purple_debug_warning("netsoul", "Error sending ping\n");
   }
+  else
+    {
+      purple_debug_warning("netsoul", "Ping\n");
+      // netsoul_send_passwd(gc);
+    }
 }
 
 static unsigned netsoul_send_typing(PurpleConnection *gc, const char *name, PurpleTypingState typing)
@@ -532,22 +537,22 @@ static GList *netsoul_blist_node_menu(PurpleBlistNode *node)
     return NULL;
 }
 
-static void netsoul_join_chat(PurpleConnection *gc, GHashTable *components)
+__attribute__((unused)) static void netsoul_join_chat(PurpleConnection *gc, GHashTable *components)
 {
    purple_debug_info("netsoul", "join_chat\n");
 }
 
-static void netsoul_reject_chat(PurpleConnection *gc, GHashTable *components)
+__attribute__((unused)) static void netsoul_reject_chat(PurpleConnection *gc, GHashTable *components)
 {
   purple_debug_info("netsoul", "reject_chat\n");
 }
 
-static void netsoul_chat_invite(PurpleConnection *gc, int id, const char *who, const char *message)
+__attribute__((unused)) static void netsoul_chat_invite(PurpleConnection *gc, int id, const char *who, const char *message)
 {
   purple_debug_info("netsoul", "chat_invite\n");
 }
 
-static int netsoul_chat_send(PurpleConnection *gc, int id, const char *message)
+static int netsoul_chat_send(PurpleConnection *gc, int id, const char *message, PurpleMessageFlags flags)
 {
   purple_debug_info("netsoul", "chat_send\n");
   return 0;
@@ -558,7 +563,7 @@ static PurplePluginProtocolInfo prpl_info =
     OPT_PROTO_MAIL_CHECK,    /* options          */
     NULL,                           /* user_splits      */
     NULL,                           /* protocol_options */
-    {"jpeg", 48, 48, 96, 96, 0, PURPLE_ICON_SCALE_DISPLAY},                 /* icon_spec        */
+    {"png", 48, 48, 96, 96, 0, PURPLE_ICON_SCALE_DISPLAY},                 /* icon_spec        */
     netsoul_list_icon,              /* list_icon        */
     netsoul_list_emblems,           /* list_emblems     */
     netsoul_status_text,            /* status_text      */
@@ -585,13 +590,13 @@ static PurplePluginProtocolInfo prpl_info =
     NULL,                           /* rem_permit       */
     NULL,                           /* rem_deny         */
     NULL,                           /* set_permit_deny  */
-    NULL/*netsoul_join_chat*/,              /* join_chat        */
-    NULL/*netsoul_reject_chat*/,            /* reject_chat      */
-    NULL,				    /* get_chat_name	*/
-    NULL/*netsoul_chat_invite*/,            /* chat_invite      */
+    netsoul_join_chat,              /* join_chat        */
+    netsoul_reject_chat,            /* reject_chat      */
+    NULL,                           /* get_chat_name    */
+    netsoul_chat_invite,            /* chat_invite      */
     NULL,                           /* chat_leave       */
     NULL,                           /* chat_whisper     */
-    NULL /*netsoul_chat_send*/,              /* chat_send        */
+    netsoul_chat_send,              /* chat_send        */
     netsoul_keepalive,              /* keepalive        */
     NULL,                           /* register_user    */
     NULL,                           /* get_cb_info      */
@@ -612,10 +617,10 @@ static PurplePluginProtocolInfo prpl_info =
     NULL,                           /* roomlist_expand_catagory */
     NULL,                           /* can_receive_file */
     NULL,                           /* send_file        */
-    NULL,		       	    /* new_xfer */
-    NULL,			    /* offline_message */
-    NULL,			    /* whiteboard_prpl_ops */
-    NULL			    /* send_raw */
+    NULL,                           /* new_xfer */
+    NULL,                           /* offline_message */
+    NULL,                           /* whiteboard_prpl_ops */
+    NULL                            /* send_raw */
 };
 
 
@@ -656,6 +661,9 @@ static void init_plugin(PurplePlugin *plugin)
     prpl_info.protocol_options = g_list_append(prpl_info.protocol_options, option);
 
     option = purple_account_option_string_new(_("Location"), "location", NETSOUL_DEFAULT_LOCATION);
+    prpl_info.protocol_options = g_list_append(prpl_info.protocol_options, option);
+
+    option = purple_account_option_bool_new(_("Location discovery (AP-based position)"), "locdisc", NETSOUL_DEFAULT_DISCOVERY);
     prpl_info.protocol_options = g_list_append(prpl_info.protocol_options, option);
 
     option = purple_account_option_string_new(_("Comment"), "comment", NETSOUL_DEFAULT_COMMENT);

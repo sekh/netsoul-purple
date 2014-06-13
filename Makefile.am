@@ -8,6 +8,7 @@ EXTRA_DIST = \
 	VERSION \
 	gaim-netsoul.spec \
 	netsoul_config.h
+ACLOCAL_AMFLAGS = -I m4
 
 SUBDIRS = src pixmaps
 

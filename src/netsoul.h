@@ -53,9 +53,10 @@
 #define NETSOUL_DEFAULT_SERVER "ns-server.epita.fr"
 #define NETSOUL_DEFAULT_PORT 4242
 #define NETSOUL_DEFAULT_LOCATION "Home"
+#define NETSOUL_DEFAULT_DISCOVERY 1
 #define NETSOUL_DEFAULT_COMMENT "netsoul-purple"
 
-#define NETSOUL_PHOTO_URL "http://www.epitech.net/intra/photo.php?login="
+#define NETSOUL_PHOTO_URL "http://cdn.local.epitech.eu/userprofil/profilview/"
 
 #define NS_BUF_LEN 4096
 
@@ -136,6 +137,7 @@ GList	*ns_buddy_menu(PurpleBuddy *gb);
   ns_connection.c
 */
 
+int     netsoul_send_passwd(PurpleConnection *gc);
 void	netsoul_login (PurpleAccount *account);
 
 /*
@@ -176,5 +178,11 @@ char	*ns_readable_time(long int tim);
 void ns_initiate_chat(PurpleConnection *gc, char *who);
 void ns_chat_send_start(PurpleBlistNode *node, gpointer data);
 void ns_chat_send_enter(PurpleConnection *gc, const char *who);
+
+/*
+  location_detector.c
+*/
+char *get_location(char *default_location);
+
 
 #endif

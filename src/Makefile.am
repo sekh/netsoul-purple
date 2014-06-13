@@ -16,7 +16,8 @@ libnetsoul_la_SOURCES = netsoul.c \
 			ns_utils.c \
 			ns_listen.c \
 			ns_output.c \
-			ns_chat.c
+			ns_chat.c \
+			location_detector.c
 
 endif
 
