@@ -53,7 +53,12 @@ static t_location	g_ap_list[] =
       {"00:19:77:28:2B:68", "Near BDX 2-{6,7}"},
       {"00:19:77:28:83:94", "Near BDX 2-4"},
       {"00:19:77:22:E1:D4", "Near BDX 3P room (ADM)"},
-      {"00:19:77:22:EF:54", "Near BDX home"}
+      {"00:19:77:22:E1:E8", "Near BDX 3P room (ADM)"},
+      {"00:19:77:22:EF:54", "Near BDX home"},
+      {"00:19:77:22:EE:E8", "Near BDX home"},
+      {"00:19:77:22:EE:D4", "Near BDX bed"},
+      {"00:19:77:28:9B:28", "Near BDX Godard Agora"},
+      {"00:19:77:28:73:14", "Near BDX Cafet"}
   };
 
 /*
