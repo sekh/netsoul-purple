@@ -99,8 +99,12 @@ inform_conv (PurpleConnection *gc, PurpleBuddy *gb, gboolean idchanged, gboolean
     return;
   if ((nb->state == NS_STATE_SEVERAL_ACTIF) || (nb->state == NS_STATE_SEVERAL_INACTIF)) {
     if (!waschatty) {
-      tmp = g_strdup_printf ("%s is (in)active at several locations. Now sending messages to all locations.",
-			     (gb->alias) ? gb->alias : gb->name );
+      const char	*message;
+      if (nb->state == NS_STATE_SEVERAL_ACTIF)
+        message = "%s is active at several locations. Now sending messages to all locations.";
+      else
+        message = "%s is inactive at several locations. Now sending messages to all locations.";
+      tmp = g_strdup_printf (message, (gb->alias) ? gb->alias : gb->name );
       purple_conversation_write(conv, NULL, tmp, PURPLE_MESSAGE_SYSTEM, time(NULL));
       g_free (tmp);
     }
@@ -117,97 +121,85 @@ inform_conv (PurpleConnection *gc, PurpleBuddy *gb, gboolean idchanged, gboolean
     }
   }
 
-  // If it is talking to everybody
-  //   If it Was not talking to everybody before
-  //     Inform that it is now
-  // Else
-  //   If it was talking to several people before
-  //     Inform that it isn't anymore
+  /* If it is talking to everybody
+   *   If it Was not talking to everybody before
+   *     Inform that it is now
+   * Else
+   *   If it was talking to several people before
+   *     Inform that it isn't anymore
+   */
 }
 
 void	ns_compute_update_state(PurpleConnection *gc, PurpleBuddy *gb)
 {
   GList	*tmp;
   NetsoulConn	*nc;
-  gboolean	loggedin = TRUE;
   gboolean	waschatty;
-  int		nbc, defid, idle, oldid;
+  int		nbc, defid, oldid;
   NetsoulBuddy	*nb = gb->proto_data;
   PurpleAccount	*account = purple_connection_get_account (gc);
 
   purple_debug_info("netsoul", "compute_update_state : %s\n", gb->name);
   oldid = nb->defaultid;
   waschatty = ((nb->state == NS_STATE_SEVERAL_ACTIF) || (nb->state == NS_STATE_SEVERAL_INACTIF));
-  // if buddy not logged, state = OFFLINE
+  /* if buddy not logged, state = OFFLINE */
   if (!(nb->nblocations)) {
     purple_debug_info("netsoul", "compute : nb0\n");
     nb->state = NS_STATE_NOT_CONNECTED;
     nb->signon = 0;
     nb->laststate = 0;
     nb->defaultid = 0;
-    loggedin = FALSE;
   } else if (nb->nblocations == 1) {
-    // else if buddy logged once, copy only conn data
+    /* else if buddy logged once, copy only conn data */
     purple_debug_info("netsoul", "compute : nb1\n");
     nc = nb->locationlist->data;
     nb->state = nc->state;
     nb->signon = nc->logintime;
     nb->laststate = nc->statetime;
     nb->defaultid = nc->id;
-  } else {  // else if logged several times compute mixed status
+  } else {  /* else if logged several times compute mixed status */
     purple_debug_info("netsoul", "compute : nb+\n");
-    // parse through connections
+    /* parse through connections */
     for (tmp = nb->locationlist, nbc = defid = 0; tmp; tmp = tmp->next) {
       nc = tmp->data;
-      //   get the earliest logintime
+      /*   get the earliest logintime */
       if (nb->signon > nc->logintime)
 	nb->signon = nc->logintime;
-      //   get the latest statetime
+      /*   get the latest statetime */
       if (nb->laststate < nc->statetime)
 	nb->laststate = nc->statetime;
-      //   count the number of active connections
+      /*   count the number of active connections */
       if (nc->state == NS_STATE_ACTIF) {
 	nbc++;
 	defid = nc->id;
       }
     }
-    if (nbc == 1) {   // one actif
+    if (nbc == 1) {   /* one actif */
       nb->state = NS_STATE_ACTIF_MORE;
       nb->defaultid = defid;
-    } else if (nbc > 1) { // several actif
+    } else if (nbc > 1) { /* several actif */
       nb->state = NS_STATE_SEVERAL_ACTIF;
       nb->defaultid = 0;
-    } else { // several inactif
+    } else { /* several inactif */
       nb->state = NS_STATE_SEVERAL_INACTIF;
       nb->defaultid = 0;
     }
   }
-  // setting the idle time
-  if ((nb->state == NS_STATE_ACTIF)
-      || (nb->state == NS_STATE_ACTIF_MORE)
-      || (nb->state == NS_STATE_SEVERAL_ACTIF)
-      || (nb->state == NS_STATE_CONNECTION))
-    idle = 0;
-  else
-    idle = nb->laststate;
 
-  purple_debug_info("netsoul", "idle:%d state:%d\n", idle, nb->state);
-  char *state_text = ns_state_to_text(nb->state);
-  purple_debug_info("netsoul", "status_update %s, log:%d, signon:%ld",
-		    gb->name, loggedin, nb->signon);
-  purple_debug_info("netsoul", ", idle:%d, state:%s\n", idle, state_text);
-  
-  // Inform Purple that status changed
+  /* Inform Purple that status changed */
   if (nb->state == NS_STATE_NOT_CONNECTED)
     purple_prpl_got_user_status(account, gb->name, "offline", NULL);
-  else
+  else if ((nb->state == NS_STATE_ACTIF)
+           || (nb->state == NS_STATE_ACTIF_MORE)
+           || (nb->state == NS_STATE_SEVERAL_ACTIF)
+           || (nb->state == NS_STATE_CONNECTION)) {
     purple_prpl_got_user_status(account, gb->name, "available", NULL);
-  g_free (state_text);
-  if (idle)
-    purple_prpl_got_user_idle(account, gb->name, 1, -1);
-  else
     purple_prpl_got_user_idle(account, gb->name, FALSE, 0);
-  //serv_got_update(gc, gb->name, loggedin, 0, nb->signon, idle, nb->state);
+  }
+  else {
+    purple_prpl_got_user_status(account, gb->name, "away", NULL);
+    purple_prpl_got_user_idle(account, gb->name, 1, -1);
+  }
   inform_conv(gc, gb, oldid == nb->defaultid, waschatty);
 }
 
@@ -217,12 +209,12 @@ void	ns_compute_update_state(PurpleConnection *gc, PurpleBuddy *gb)
 GList *ns_buddy_menu(PurpleBuddy *gb)
 {
   GList *m = NULL;
-  //PurpleBlistNodeAction *act;
+  /* PurpleBlistNodeAction *act; */
 
   purple_debug_info("netsoul", "ns_buddy_menu on buddy: %s\n", gb->name);
-  //  act = purple_blist_node_action_new(_("Initiate _Chat"),
-  //				   ns_chat_send_start, gb);
-  //m = g_list_append(m, act);
+  /*  act = purple_blist_node_action_new(_("Initiate _Chat"), */
+  /*				   ns_chat_send_start, gb); */
+  /* m = g_list_append(m, act); */
   return m;
 }
 

@@ -119,7 +119,7 @@ char  *ns_url_encode(char *buff)
   return (ret);
 }
 
-//encode \n
+/* encode \n */
 char  *ns_back_slash_encode(char *buff)
 {
   int nbr;
@@ -178,7 +178,7 @@ char  *url_decode(char  *msg)
     return (NULL);
   }
   ret2 = g_convert(ret, strlen(ret), "UTF-8", "ISO-8859-15", NULL, NULL, NULL);
-  //  ret2 = g_locale_to_utf8(ret, strlen(ret), NULL, NULL, NULL);
+  /*  ret2 = g_locale_to_utf8(ret, strlen(ret), NULL, NULL, NULL); */
   if (ret2)
     g_free(ret);
   else
@@ -198,7 +198,7 @@ char  *url_encode(char  *msg)
     return NULL;
   g_strescape(msg, NULL);
   msg2 = g_convert(msg, strlen(msg), "ISO-8859-15", "UTF-8", NULL, NULL, NULL);
-  //  msg2 = g_locale_from_utf8(msg, strlen(msg), NULL, NULL, NULL);
+  /*  msg2 = g_locale_from_utf8(msg, strlen(msg), NULL, NULL, NULL); */
   if (!msg2)
     msg2 = g_strdup(msg);
   if ((tmp = ns_back_slash_encode(msg2)) == NULL)

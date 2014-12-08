@@ -82,6 +82,7 @@ char *netsoul_conn_text(NetsoulConn *nc)
   state = ns_state_to_text(nc->state);
   resp = g_strdup_printf("\n<b>Location:</b> %s\n<b>IP:</b> %s\n<b>Comment:</b> %s\n<b>Logged in:</b> %s<b>State:</b> %s\n  <b>since:</b> %s",
 			 nc->location, nc->ip, nc->comment, loggedin, state, statetime);
+
   g_free(loggedin);
   g_free(statetime);
   g_free(state);
@@ -93,16 +94,23 @@ char *netsoul_conn_text_html(NetsoulConn *nc)
   char	*loggedin;
   char	*statetime;
   char	*state;
+  char	*state2;
   char	*resp;
 
   loggedin = ns_readable_time(nc->logintime);
-  statetime = ns_readable_time(nc->statetime);
   state = ns_state_to_text(nc->state);
-  resp = g_strdup_printf("<b>Location:</b> %s<br><b>IP:</b> %s<br><b>Comment:</b> %s<br><b>Logged in:</b> %s<br><b>State:</b> %s<br>  <b>since:</b> %s",
-			 nc->location, nc->ip, nc->comment, loggedin, state, statetime);
+  if (nc->statetime) {
+    statetime = ns_readable_time(nc->statetime);
+    state2 = g_strdup_printf("%s (%s)", state, statetime);
+    g_free(statetime);
+    g_free(state);
+  }
+  else
+    state2 = state;
+  resp = g_strdup_printf("<b>Location:</b> %s<br><b>IP:</b> %s<br><b>Comment:</b> %s<br><b>Logged in:</b> %s<br><b>State:</b> %s",
+			 nc->location, nc->ip, nc->comment, loggedin, state2);
   g_free(loggedin);
-  g_free(statetime);
-  g_free(state);
+  g_free(state2);
   return resp;
 }
 
@@ -134,7 +142,7 @@ static void netsoul_tooltip_text(PurpleBuddy *gb, PurpleNotifyUserInfo *user_inf
     gb->proto_data = nb;
     nb->login = g_strdup(gb->name);
     ns_watch_buddy(gc, gb);
-    // watch_log_user
+    /* watch_log_user */
     ns_watch_log_user(gc);
     ns_list_users(gc, ns->watchlist);
   }
@@ -172,7 +180,7 @@ static GList * netsoul_away_states (PurpleAccount* account)
 				     NULL, NULL, TRUE, TRUE, FALSE);
   types = g_list_append(types, status);
   status = purple_status_type_new_full(PURPLE_STATUS_AVAILABLE,
-				     "actif", NULL, FALSE, TRUE, FALSE);
+				     "active", NULL, FALSE, TRUE, FALSE);
   types = g_list_append(types, status);
 
   status = purple_status_type_new_full(PURPLE_STATUS_AWAY,
@@ -218,6 +226,20 @@ static void netsoul_set_away(PurpleAccount *account, PurpleStatus* status)
 static void netsoul_set_idle(PurpleConnection *gc, int idletime)
 {
   purple_debug_info("netsoul", "netsoul_set_idle. idletime:%d\n", idletime);
+  if (idletime)
+    ns_send_state(gc, NS_STATE_IDLE, idletime);
+  else {
+    int ns_state = NS_STATE_ACTIF;
+    PurpleAccount *account = NULL;
+    PurpleStatus *status = NULL;
+    PurplePresence* state = NULL;
+    if ((account = purple_connection_get_account(gc)) &&
+        (status = purple_account_get_active_status(account)) &&
+        (state = purple_status_get_presence (status)) &&
+        !purple_presence_is_available(state))
+      ns_state = NS_STATE_AWAY;
+    ns_send_state(gc, ns_state, 0);
+  }
 }
 
 /*
@@ -227,11 +249,15 @@ static void netsoul_set_idle(PurpleConnection *gc, int idletime)
 
 static void netsoul_close (PurpleConnection *gc)
 {
+#if 0
   PurpleBlistNode *gnode, *cnode, *bnode;
+#endif
   NetsoulData	*ns = gc->proto_data;
 
   purple_debug_info("netsoul", "netsoul_close\n");
 
+#if 0
+  /* seems useless and produce valgrind errors */
   for(gnode = purple_get_blist()->root; gnode; gnode = gnode->next) {
     if(!PURPLE_BLIST_NODE_IS_GROUP(gnode)) continue;
     for(cnode = gnode->child; cnode; cnode = cnode->next) {
@@ -247,12 +273,14 @@ static void netsoul_close (PurpleConnection *gc)
       }
     }
   }
+#endif
 
   g_free(ns->challenge);
   g_free(ns->host);
   close(ns->fd);
   g_free(ns);
-  purple_input_remove(gc->inpa);
+  if (gc->inpa)
+    purple_input_remove(gc->inpa);
 }
 
 
@@ -265,13 +293,14 @@ static void netsoul_got_photo (PurpleUtilFetchUrlData *url, void *user_data,
 {
   PurpleBuddy *gb = user_data;
   PurpleAccount *account = purple_buddy_get_account (gb);
-
-  // Check if connection is still existing
+  if (account == NULL)
+    return ;
+  /* Check if connection is still existing */
   PurpleConnection *gc = purple_account_get_connection (account);
   if (gc == NULL)
     return;
 
-  purple_debug_info("netsoul", "netsoul_got_photo (size: %d) for %s\n",
+  purple_debug_info("netsoul", "netsoul_got_photo (size: %lu) for %s\n",
 		    len,
 		    gb->name);
 
@@ -286,7 +315,7 @@ static void netsoul_got_photo (PurpleUtilFetchUrlData *url, void *user_data,
     {
       PurpleStoredImage *img = purple_imgstore_add(g_memdup(photo, len), len, NULL);
       PurpleBuddyIcon *icon = purple_buddy_icon_new(account, gb->name,
-						    purple_imgstore_get_data(img),
+						    (void*)purple_imgstore_get_data(img),
 						    purple_imgstore_get_size(img),
 						    NULL);
       purple_buddy_set_icon(gb, icon);
@@ -310,14 +339,13 @@ static void netsoul_add_buddy (PurpleConnection *gc, PurpleBuddy *buddy, PurpleG
   nb = g_new0(NetsoulBuddy, 1);
   buddy->proto_data = nb;
   nb->login = g_strdup(buddy->name);
-  // Get photo
-  photo = g_strdup_printf("%s%s", NETSOUL_PHOTO_URL, buddy->name);
+  /* Get photo */
+  photo = g_strdup_printf("%s%s.png", NETSOUL_PHOTO_URL, buddy->name);
+  purple_util_fetch_url(photo, FALSE, "Mozilla/5.0", FALSE, &netsoul_got_photo, buddy);
 
-  purple_util_fetch_url(photo, TRUE, NULL, FALSE, netsoul_got_photo, buddy);
-
-  // if contact is not already is watch list, add it
+  /* if contact is not already is watch list, add it */
   ns_watch_buddy(gc, buddy);
-  // watch_log_user
+  /* watch_log_user */
   ns_watch_log_user(gc);
   ns_list_users(gc, ns->watchlist);
 }
@@ -335,16 +363,16 @@ static void netsoul_add_buddies(PurpleConnection *gc, GList *buddies, GList *gro
   PurpleBuddy	*gb;
 
   purple_debug_info("netsoul", "netsoul_add_buddies\n");
-  // for each contact
+  /* for each contact */
   for (tmp = buddies; tmp; tmp = tmp->next) {
-  //   if contact is not already in watch list add it
+  /*   if contact is not already in watch list add it */
     gb = (PurpleBuddy *) tmp->data;
     nb = g_new0(NetsoulBuddy, 1);
     nb->login = g_strdup(gb->name);
     gb->proto_data = nb;
     ns_watch_buddy(gc, gb);
   }
-  // watch_log_user
+  /* watch_log_user */
   ns_watch_log_user(gc);
   ns_list_users(gc, ns->watchlist);
 }
@@ -375,18 +403,18 @@ void netsoul_get_buddies (PurpleConnection* gc)
 	  NetsoulBuddy *nb = g_new0(NetsoulBuddy, 1);
 	  buddy->proto_data = nb;
 	  nb->login = g_strdup(buddy->name);
-	  // Get photo
-	  photo = g_strdup_printf("%s%s", NETSOUL_PHOTO_URL, buddy->name);
+	  /* Get photo */
+	  purple_debug_info("netsoul", "get photo %s%s.png\n", NETSOUL_PHOTO_URL, buddy->name);
+	  photo = g_strdup_printf("%s%s.png", NETSOUL_PHOTO_URL, buddy->name);
+	  purple_util_fetch_url(photo, FALSE, "Mozilla/5.0", FALSE, &netsoul_got_photo, buddy);
 
-	  purple_util_fetch_url(photo, TRUE, NULL, FALSE, netsoul_got_photo, buddy);
-
-	  // if contact is not already is watch list, add it
+	  /* if contact is not already is watch list, add it */
 	  ns_watch_buddy(gc, buddy);
 	}
       }
     }
   }
-  // watch_log_user
+  /* watch_log_user */
   NetsoulData *ns = gc->proto_data;
   ns_watch_log_user(gc);
   ns_list_users(gc, ns->watchlist);
@@ -407,7 +435,7 @@ static void netsoul_remove_buddy (PurpleConnection *gc, PurpleBuddy *buddy, Purp
 
   purple_debug_info("netsoul", "netsoul_remove_buddy\n");
   nb = buddy->proto_data;
-  // remove buddy from watchlist
+  /* remove buddy from watchlist */
   if ((tmp = g_list_find_custom(ns->watchlist, nb->login, (GCompareFunc) g_ascii_strcasecmp)))
     ns->watchlist = g_list_delete_link(ns->watchlist, tmp);
   g_free(nb->login);
@@ -421,6 +449,7 @@ static void netsoul_remove_buddy (PurpleConnection *gc, PurpleBuddy *buddy, Purp
   }
   g_list_free(nb->locationlist);
   g_free(nb);
+  buddy->proto_data = NULL;
 }
 
 /*
@@ -503,19 +532,26 @@ static void netsoul_get_info(PurpleConnection *gc, const char *who)
 static const char* netsoul_list_emblems(PurpleBuddy *buddy)
 {
   NetsoulBuddy	*nb = buddy->proto_data;
+  NetsoulConn	*nc;
+  GList		*tmp;
 
   if (!nb)
-    return "";
+    return NULL;
   purple_debug_info("netsoul", "list_emblems %s\n", nb->login);
-  if ((nb->state == NS_STATE_AWAY) || (nb->state == NS_STATE_IDLE))
-    return "away";
-  if (nb->state == NS_STATE_SEVERAL_INACTIF)
-    return "extendedaway";
-  if ((nb->state == NS_STATE_SERVER) || (nb->state == NS_STATE_LOCK))
-    return "secure";
-  if ((nb->state == NS_STATE_SEVERAL_ACTIF) || (nb->state == NS_STATE_ACTIF_MORE))
-    return "activebuddy";
-  return "";
+  for (tmp = nb->locationlist; tmp; tmp = tmp->next)
+    {
+      nc = tmp->data;
+      if (nc && nc->ip &&
+	  nc->ip[0] == '1' && nc->ip[1] == '0' && nc->ip[2] == '.')
+	{
+	  if ((nb->state == NS_STATE_AWAY) || (nb->state == NS_STATE_IDLE) ||
+	      (nb->state == NS_STATE_SERVER) || (nb->state == NS_STATE_LOCK) ||
+	      (nb->state == NS_STATE_SEVERAL_INACTIF))
+	    return "epitech_inactive";
+	  return "epitech";
+	}
+    }
+  return NULL;
 }
 
 /*
@@ -532,22 +568,22 @@ static GList *netsoul_blist_node_menu(PurpleBlistNode *node)
     return NULL;
 }
 
-static void netsoul_join_chat(PurpleConnection *gc, GHashTable *components)
+__attribute__((unused)) static void netsoul_join_chat(PurpleConnection *gc, GHashTable *components)
 {
    purple_debug_info("netsoul", "join_chat\n");
 }
 
-static void netsoul_reject_chat(PurpleConnection *gc, GHashTable *components)
+__attribute__((unused)) static void netsoul_reject_chat(PurpleConnection *gc, GHashTable *components)
 {
   purple_debug_info("netsoul", "reject_chat\n");
 }
 
-static void netsoul_chat_invite(PurpleConnection *gc, int id, const char *who, const char *message)
+__attribute__((unused)) static void netsoul_chat_invite(PurpleConnection *gc, int id, const char *who, const char *message)
 {
   purple_debug_info("netsoul", "chat_invite\n");
 }
 
-static int netsoul_chat_send(PurpleConnection *gc, int id, const char *message)
+static int netsoul_chat_send(PurpleConnection *gc, int id, const char *message, PurpleMessageFlags flags)
 {
   purple_debug_info("netsoul", "chat_send\n");
   return 0;
@@ -558,7 +594,7 @@ static PurplePluginProtocolInfo prpl_info =
     OPT_PROTO_MAIL_CHECK,    /* options          */
     NULL,                           /* user_splits      */
     NULL,                           /* protocol_options */
-    {"jpeg", 48, 48, 96, 96, 0, PURPLE_ICON_SCALE_DISPLAY},                 /* icon_spec        */
+    {"png", 48, 48, 96, 96, 0, PURPLE_ICON_SCALE_DISPLAY},                 /* icon_spec        */
     netsoul_list_icon,              /* list_icon        */
     netsoul_list_emblems,           /* list_emblems     */
     netsoul_status_text,            /* status_text      */
@@ -585,13 +621,13 @@ static PurplePluginProtocolInfo prpl_info =
     NULL,                           /* rem_permit       */
     NULL,                           /* rem_deny         */
     NULL,                           /* set_permit_deny  */
-    NULL/*netsoul_join_chat*/,              /* join_chat        */
-    NULL/*netsoul_reject_chat*/,            /* reject_chat      */
-    NULL,				    /* get_chat_name	*/
-    NULL/*netsoul_chat_invite*/,            /* chat_invite      */
+    netsoul_join_chat,              /* join_chat        */
+    netsoul_reject_chat,            /* reject_chat      */
+    NULL,                           /* get_chat_name    */
+    netsoul_chat_invite,            /* chat_invite      */
     NULL,                           /* chat_leave       */
     NULL,                           /* chat_whisper     */
-    NULL /*netsoul_chat_send*/,              /* chat_send        */
+    netsoul_chat_send,              /* chat_send        */
     netsoul_keepalive,              /* keepalive        */
     NULL,                           /* register_user    */
     NULL,                           /* get_cb_info      */
@@ -612,10 +648,12 @@ static PurplePluginProtocolInfo prpl_info =
     NULL,                           /* roomlist_expand_catagory */
     NULL,                           /* can_receive_file */
     NULL,                           /* send_file        */
-    NULL,		       	    /* new_xfer */
-    NULL,			    /* offline_message */
-    NULL,			    /* whiteboard_prpl_ops */
-    NULL			    /* send_raw */
+    NULL,			    /* send_attention      */
+    NULL,			    /* get_attention_types */
+	NULL,				/* sizeof(PurplePluginProtocolInfo), */
+    NULL,			    /* get_account_text_table */
+    NULL,			    /* initiate_media */
+    NULL			    /* can_do_media */
 };
 
 

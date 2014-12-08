@@ -62,7 +62,7 @@ static void auth_response (gpointer data, gint source, PurpleInputCondition cond
   }
   purple_debug_info("netsoul", "auth_response got : %s\n", buf);
   tab = g_strsplit(buf, " ", 6);
-  if (strcmp(*tab, "rep")) {
+  if (!tab || !*tab || strcmp(*tab, "rep")) {
     purple_connection_error(gc, _("Wrong Answer from server\n"));
     return;
   }
@@ -95,7 +95,7 @@ static void netsoul_login_greeting (gpointer data, gint source, PurpleInputCondi
   }
   purple_debug_info("netsoul", "netsoul_login_connect received: %s\n", buf);
   tab = g_strsplit(buf, " ", 6);
-  if ((g_strv_length(tab) != 6) || strncmp(tab[0], "salut", 5))
+  if (!tab[0] || strncmp(tab[0], "salut", 5) || !tab[4])
   {
     purple_connection_error(gc, _("Wrong greetings from server\n"));
     purple_debug_info("netsoul", "Error on str : %s\n", buf);

@@ -31,6 +31,8 @@ gaim-netsoul.spec
 #created by debuild
 debian/files
 
+#created by libtool
+src/libnetsoul.la
 
 #created by make
 *.o
